@@ -161,39 +161,6 @@ ZSet.prototype = {
     return lo;
   }
 
-, test: function(label) {
-    var keys = this.$keys
-      , scores = this.$scores
-      , n = keys.length
-      , i
-      , lastKey, lastScore
-      , key, score;
-
-    if (n < 1)
-      return;
-
-    lastKey = keys[0];
-    lastScore = scores[lastKey];
-
-    for (i = 1; i < n; i++) {
-      key = keys[i];
-      score = scores[key];
-
-      if (typeof score !== 'number')
-        throw new Error("corrupt score: " + score);
-      if (typeof lastScore !== 'number')
-        throw new Error("corrupt lastScore: " + lastScore);
-
-      if (score > lastScore || (score === lastScore && key > lastKey)) {
-        lastKey = key;
-        lastScore = score;
-        continue;
-      }
-
-      throw new Error(label || "Ranking is broken.");
-    }
-  }
-
 };
 
 
