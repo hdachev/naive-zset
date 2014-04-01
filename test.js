@@ -1,9 +1,6 @@
 
 var ZSet = require('./zset');
 
-
-//
-
 function test(desc, numPlayers, maxScore) {
   var players = []
     , zset = new ZSet(desc);
@@ -14,16 +11,30 @@ function test(desc, numPlayers, maxScore) {
   var first = players[0].key
     , firstScore = players[0].score;
 
+  // test adding one by one
   players.forEach(function(player) {
     if (!zset.zadd(player.key, player.score))
       throw "Already existing.";
   });
 
-  zset.checkIntegrity('init');
+  zset.checkIntegrity('init -a');
 
   if (zset.zcard() !== numPlayers)
-    throw "Bad card.";
+    throw "Bad card -a";
 
+  // test adding bulk setting
+  var bulkData = {};
+  players.forEach(function(player) {
+    bulkData[player.key] = player.score;
+  });
+
+  zset.setData(bulkData);
+  zset.checkIntegrity('init -b');
+
+  if (zset.zcard() !== numPlayers)
+    throw "Bad card -b";
+
+  // test moving stuff around
   var rank = zset.zrank(first);
   if (rank < 0)
     throw "Player not there: " + rank;
@@ -78,17 +89,25 @@ function test(desc, numPlayers, maxScore) {
 
 }
 
-
-//
-
-test(false, Math.ceil(Math.random() * 1000), 100);
-test(true,  Math.ceil(Math.random() * 1000), 100);
-test(false, Math.ceil(Math.random() * 100), 1000);
-test(true,  Math.ceil(Math.random() * 100), 1000);
+// spam with various dataset sizes
+test(false, 1, 1);
+test(true,  1, 1);
+test(false, 2, 2);
+test(true,  2, 2);
+test(false, 3, 3);
+test(true,  3, 3);
+test(false, 4, 4);
+test(true,  4, 4);
+test(false, 5, 5);
+test(true,  5, 5);
 test(false, Math.ceil(Math.random() * 10), 10000);
 test(true,  Math.ceil(Math.random() * 10), 10000);
+test(false, Math.ceil(Math.random() * 100), 1000);
+test(true,  Math.ceil(Math.random() * 100), 1000);
+test(false, Math.ceil(Math.random() * 1000), 100);
+test(true,  Math.ceil(Math.random() * 1000), 100);
+test(false, Math.ceil(Math.random() * 10000), 10);
+test(true,  Math.ceil(Math.random() * 10000), 10);
 
-
-//
-
+// should be good!
 console.log("OK!");
