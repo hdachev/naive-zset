@@ -1,10 +1,12 @@
 
 
 // naive sorted list impl
-function ZSet() {
+function ZSet(descending) {
   this.$keys = [];
   this.$scores = {};
+  this.$asc = !descending;
 }
+
 
 ZSet.prototype = {
 
@@ -14,12 +16,13 @@ ZSet.prototype = {
     if (typeof key !== 'string')
       throw new Error("Bad key");
 
-    // remove existing
     var rank = this.zrank(key)
       , insertRank = this.$zrankForInsert(key, score);
 
     this.$scores[key] = score;
 
+    // move stuff around the set if the key already exists,
+    // if the key travels only over a short distance this should be fairly fast
     if (rank >= 0) {
       if (insertRank > rank)
         insertRank --;
@@ -29,7 +32,18 @@ ZSet.prototype = {
       return false;
     }
 
+    // splice it in otherwise
     this.$insert(key, insertRank);
+    return true;
+  }
+
+, zrem: function(key) {
+    var rank = this.zrank(key);
+    if (rank < 0)
+      return false;
+
+    this.$keys.splice(rank, 1);
+    delete this.$scores[key];
     return true;
   }
 
@@ -47,6 +61,10 @@ ZSet.prototype = {
 
 
   // moving stuff around
+
+, $insert: function(key, at) {
+    this.$keys.splice(at, 0, key);
+  }
 
 , $move: function(key, from, to) {
     var keys = this.$keys, pos;
@@ -72,29 +90,15 @@ ZSet.prototype = {
     keys[to] = key;
   }
 
-, $insert: function(key, at) {
-    this.$keys.splice(at, 0, key);
-  }
-
-, zrem: function(key) {
-    var rank = this.zrank(key);
-    if (rank < 0)
-      return false;
-
-    this.$keys.splice(rank, 1);
-    delete this.$scores[key];
-    return true;
-  }
-
 
   // binary search related crap
 
 , zrank: function(key) {
     var scores = this.$scores
       , keys = this.$keys
-      , score = scores[key];
-
-    // not in set
+      , score = scores[key]
+      , asc = this.$asc;
+    // return -1 if not in the set
     if (!score && typeof score !== 'number')
       return -1;
 
@@ -116,7 +120,8 @@ ZSet.prototype = {
       rscore = scores[rkey];
 
       // we need to go down
-      if (rscore > score || (rscore === score && rkey > key))
+      if (asc ? rscore > score || (rscore === score && rkey > key)
+              : rscore < score || (rscore === score && rkey < key))
         hi = rank - 1;
 
       // we need to go up
@@ -133,6 +138,7 @@ ZSet.prototype = {
 , $zrankForInsert: function(key, score) {
     var scores = this.$scores
       , keys = this.$keys
+      , asc = this.$asc
 
       , lo = 0
       , hi = keys.length
@@ -146,11 +152,13 @@ ZSet.prototype = {
       rscore = scores[rkey];
 
       // go down
-      if (rscore > score || (rscore === score && rkey > key))
+      if (asc ? rscore > score || (rscore === score && rkey > key)
+              : rscore < score || (rscore === score && rkey < key))
         hi = rank - 1;
 
       // go up
-      else if (rscore < score || (rscore === score && rkey < key))
+      else if (asc ? rscore < score || (rscore === score && rkey < key)
+                   : rscore > score || (rscore === score && rkey > key))
         lo = rank + 1;
 
       // found!
@@ -159,6 +167,41 @@ ZSet.prototype = {
     }
 
     return lo;
+  }
+
+, checkIntegrity: function(label) {
+    var keys = this.$keys
+      , scores = this.$scores
+      , n = keys.length
+      , i
+      , lastKey, lastScore
+      , key, score
+      , asc = this.$asc;
+
+    if (n < 1)
+      return;
+
+    lastKey = keys[0];
+    lastScore = scores[lastKey];
+
+    for (i = 1; i < n; i++) {
+      key = keys[i];
+      score = scores[key];
+
+      if (typeof score !== 'number')
+        throw new Error("corrupt score: " + score);
+      if (typeof lastScore !== 'number')
+        throw new Error("corrupt lastScore: " + lastScore);
+
+      if (asc ? score > lastScore || (score === lastScore && key > lastKey)
+              : score < lastScore || (score === lastScore && key < lastKey)) {
+        lastKey = key;
+        lastScore = score;
+        continue;
+      }
+
+      throw new Error((label || "Ranking") || " - broken");
+    }
   }
 
 };

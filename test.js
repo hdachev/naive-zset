@@ -1,106 +1,94 @@
 
-var ZSet = require('./zset')
-  , zset = new ZSet()
-  , players = []
-  , MAX_SCORE = 100000
-  , numPlayers = Math.round(Math.random() * MAX_SCORE);
+var ZSet = require('./zset');
 
 
-ZSet.prototype.test = function(label) {
-  var keys = this.$keys
-    , scores = this.$scores
-    , n = keys.length
-    , i
-    , lastKey, lastScore
-    , key, score;
+//
 
-  if (n < 1)
-    return;
+function test(desc, numPlayers, maxScore) {
+  var players = []
+    , zset = new ZSet(desc);
 
-  lastKey = keys[0];
-  lastScore = scores[lastKey];
+  for (var i = 0; i < numPlayers; i ++)
+    players[i] = { key: 'player_' + i, score: Math.round(Math.random() * maxScore) };
 
-  for (i = 1; i < n; i++) {
-    key = keys[i];
-    score = scores[key];
+  var first = players[0].key
+    , firstScore = players[0].score;
 
-    if (typeof score !== 'number')
-      throw new Error("corrupt score: " + score);
-    if (typeof lastScore !== 'number')
-      throw new Error("corrupt lastScore: " + lastScore);
+  players.forEach(function(player) {
+    if (!zset.zadd(player.key, player.score))
+      throw "Already existing.";
+  });
 
-    if (score > lastScore || (score === lastScore && key > lastKey)) {
-      lastKey = key;
-      lastScore = score;
-      continue;
-    }
+  zset.checkIntegrity('init');
 
-    throw new Error((label || "Ranking") || " - broken");
-  }
-};
+  if (zset.zcard() !== numPlayers)
+    throw "Bad card.";
+
+  var rank = zset.zrank(first);
+  if (rank < 0)
+    throw "Player not there: " + rank;
+
+  if (zset.zscore(first) !== firstScore)
+    throw "Scores got mixed up.";
+  if (!zset.zrem(first))
+    throw "Player can't be removed.";
+  if (zset.zrank(first) >= 0)
+    throw "Player remained in set.";
+
+  zset.checkIntegrity('rem1');
+
+  if (zset.zrem(first))
+    throw "Player removed twice.";
+
+  zset.checkIntegrity('rem2');
+
+  if (!zset.zadd(first, 0))
+    throw "Player couldn't be added.";
+
+  zset.checkIntegrity('re-add1');
+
+  if (zset.zrank(first) !== (desc ? numPlayers - 1 : 0))
+    throw "Rank is off 0."
+
+  if (zset.zadd(first, firstScore))
+    throw "Player added twice.";
+
+  zset.checkIntegrity('re-add2');
+
+  if (zset.zrank(first) !== rank)
+    throw "Rank is off 1.";
+
+  if (zset.zadd(first, maxScore + 1))
+    throw "Player added twice.";
+
+  zset.checkIntegrity('re-add3');
+
+  if (zset.zrank(first) !== (desc ? 0 : numPlayers - 1))
+    throw "Rank is off 2."
+
+  if (zset.zadd(first, firstScore))
+    throw "Player added twice.";
+
+  zset.checkIntegrity('re-add4');
+
+  if (zset.zrank(first) !== rank)
+    throw "Rank is off 3.";
+
+  zset.checkIntegrity('done');
+
+}
 
 
-for (var i = 0; i < numPlayers; i ++)
-  players[i] = { key: 'player_' + i, score: Math.round(Math.random() * 100) };
+//
 
-var first = players[0].key
-  , firstScore = players[0].score;
+test(false, Math.ceil(Math.random() * 1000), 100);
+test(true,  Math.ceil(Math.random() * 1000), 100);
+test(false, Math.ceil(Math.random() * 100), 1000);
+test(true,  Math.ceil(Math.random() * 100), 1000);
+test(false, Math.ceil(Math.random() * 10), 10000);
+test(true,  Math.ceil(Math.random() * 10), 10000);
 
-players.forEach(function(player) {
-  if (!zset.zadd(player.key, player.score))
-    throw "Already existing.";
-});
 
-zset.test('init');
+//
 
-if (zset.zcard() !== numPlayers)
-  throw "Bad card.";
-
-var rank = zset.zrank(first);
-if (rank < 0)
-  throw "Player not there: " + rank;
-
-if (zset.zscore(first) !== firstScore)
-  throw "Scores got mixed up.";
-if (!zset.zrem(first))
-  throw "Player can't be removed.";
-if (zset.zrank(first) >= 0)
-  throw "Player remained in set.";
-
-zset.test('rem1');
-
-if (zset.zrem(first))
-  throw "Player removed twice.";
-
-zset.test('rem2');
-
-if (!zset.zadd(first, 0))
-  throw "Player couldn't be added.";
-
-zset.test('re-add1');
-
-if (zset.zadd(first, firstScore))
-  throw "Player added twice.";
-
-zset.test('re-add2');
-
-if (zset.zrank(first) !== rank)
-  throw "Rank is off 1.";
-
-if (zset.zadd(first, MAX_SCORE + 1))
-  throw "Player added twice.";
-
-zset.test('re-add3');
-
-if (zset.zrank(first) !== zset.$keys.length - 1)
-  throw "Rank is off."
-
-if (zset.zadd(first, firstScore))
-  throw "Player added twice.";
-
-zset.test('re-add4');
-
-if (zset.zrank(first) !== rank)
-  throw "Rank is off 2.";
-
-zset.test('done');
+console.log("OK!");
