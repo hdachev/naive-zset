@@ -165,6 +165,44 @@ ZSet.prototype = {
     return lo;
   }
 
+
+  // bulk set data
+  // { key: score, key: score, ... }
+
+, setData: function(scores) {
+    var keys = []
+      , asc = this.$asc
+      , key;
+
+    if (typeof scores !== 'object' || Array.isArray(scores))
+      throw new Error("Bad dataset, provide your data as { key: score, ... }.");
+
+    // collect the keyset and check scores
+    for (key in scores) {
+      if (typeof scores[key] !== 'number')
+        throw new Error("Nan score for key: " + key);
+
+      keys.push(key);
+    }
+
+    if (asc)
+      keys.sort(function(a, b) {
+        return (scores[a] - scores[b])
+            || (a < b ? -1 : a > b ? 1 : 0);
+      });
+    else
+      keys.sort(function(b, a) {
+        return (scores[a] - scores[b])
+            || (a < b ? -1 : a > b ? 1 : 0);
+      });
+
+    this.$keys = keys;
+    this.$scores = scores;
+  }
+
+
+  // testing
+
 , checkIntegrity: function(label) {
     var keys = this.$keys
       , scores = this.$scores
@@ -200,45 +238,7 @@ ZSet.prototype = {
     }
   }
 
-
-  // bulk set data
-  // { key: score, key score }
-
-, setData: function(scores) {
-    var keys = []
-      , asc = this.$asc
-      , key;
-
-    if (typeof scores !== 'object' || Array.isArray(scores))
-      throw new Error("Bad dataset, provide your data as { key: score, ... }.");
-
-    // collect the keyset and check scores
-    for (key in scores) {
-      score = scores[key];
-      if (typeof score !== 'number')
-        throw new Error("Nan score for key: " + key);
-
-      keys.push(key);
-    }
-
-    if (asc)
-      keys.sort(function(a, b) {
-        return (scores[a] - scores[b])
-            || (a < b ? -1 : a > b ? 1 : 0);
-      });
-    else
-      keys.sort(function(b, a) {
-        return (scores[a] - scores[b])
-            || (a < b ? -1 : a > b ? 1 : 0);
-      });
-
-    this.$keys = keys;
-    this.$scores = scores;
-  }
-
 };
 
-
-//
-
-module.exports = ZSet;
+if (typeof module !== 'undefined')
+  module.exports = ZSet;

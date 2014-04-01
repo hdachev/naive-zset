@@ -59,7 +59,7 @@ function test(desc, numPlayers, maxScore) {
   zset.checkIntegrity('re-add1');
 
   if (zset.zrank(first) !== (desc ? numPlayers - 1 : 0))
-    throw "Rank is off 0."
+    throw "Rank is off 0.";
 
   if (zset.zadd(first, firstScore))
     throw "Player added twice.";
@@ -75,7 +75,7 @@ function test(desc, numPlayers, maxScore) {
   zset.checkIntegrity('re-add3');
 
   if (zset.zrank(first) !== (desc ? 0 : numPlayers - 1))
-    throw "Rank is off 2."
+    throw "Rank is off 2.";
 
   if (zset.zadd(first, firstScore))
     throw "Player added twice.";
@@ -85,8 +85,26 @@ function test(desc, numPlayers, maxScore) {
   if (zset.zrank(first) !== rank)
     throw "Rank is off 3.";
 
-  zset.checkIntegrity('done');
+  // shuffle the set a couple of times
+  function shuffle() {
+    players.forEach(function(player) {
+      if (Math.random() > 0.66)
+        zset.zrem(player.key);
+      else if (Math.random() > 0.33)
+        zset.zadd(player.key, Math.random() * maxScore);
+      else
+        zset.zadd(player.key, Math.round(Math.random() * maxScore));
 
+      if (Math.random() > 0.9)
+        zset.checkIntegrity('randcheck');
+    });
+  }
+
+  shuffle();
+  shuffle();
+  shuffle();
+
+  zset.checkIntegrity('shuffle');
 }
 
 // spam with various dataset sizes
@@ -110,4 +128,4 @@ test(false, Math.ceil(Math.random() * 10000), 10);
 test(true,  Math.ceil(Math.random() * 10000), 10);
 
 // should be good!
-console.log("OK!");
+console.log("Looks good.");
